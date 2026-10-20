@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chad's World Tour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: projector-first two-pane comic reader. Left: the comic page, zooming panel to panel. Right: caption, speech bubble, choices, Trust Meter. Single deliberate "newsprint" look. */
+:root {
+  --paper: #fffaf0;
+  --ink: #16181d;
+  --ink-soft: #3d4250;
+  --stage: #1e2a44;
+  --stage-dot: #2b3a5c;
+  --cyan: #18a7d8;
+  --magenta: #e2337a;
+  --yellow: #ffd23f;
+  --good: #1f9d55;
+  --bad: #d7263d;
+  --line: #16181d;
+  --display: "Bangers", "Impact", "Arial Black", sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px 14px;
+  gap: 10px;
+  box-sizing: border-box;
+}
+/* Header */
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  border-bottom: 3px solid var(--line); padding-bottom: 8px;
+}
+.brand { font-family: var(--display); font-size: 2rem; letter-spacing: 0.04em; line-height: 1; }
+.brand span { color: var(--magenta); }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.tab {
+  font-family: var(--display); font-size: 1.15rem; letter-spacing: 0.05em;
+  background: var(--paper); color: var(--ink); border: 2.5px solid var(--line);
+  padding: 4px 12px; cursor: pointer; box-shadow: 3px 3px 0 var(--line);
+}
+.tab[aria-current="true"] { background: var(--yellow); }
+.tab .score { font-family: var(--body); font-weight: 700; font-size: 0.8rem; margin-left: 6px; letter-spacing: 0; }
+.iconbtn {
+  font-family: var(--body); font-weight: 700; font-size: 0.9rem;
+  background: var(--paper); border: 2.5px solid var(--line); padding: 6px 12px; cursor: pointer;
+  box-shadow: 3px 3px 0 var(--line); color: var(--ink);
+}
+button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+
+/* Main */
+.main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; min-height: 0; }
+.stage {
+  position: relative; overflow: hidden; min-height: 0;
+  background-color: var(--stage);
+  background-image: radial-gradient(var(--stage-dot) 22%, transparent 24%);
+  background-size: 14px 14px;
+  border: 3px solid var(--line);
+}
+.page {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0;
+  background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  transition: transform 700ms cubic-bezier(.65,.05,.25,1);
+}
+.page img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ph {
+  position: absolute; border: 3px solid var(--line); background: var(--paper);
+  box-sizing: border-box; padding: 6% 7%; display: flex; flex-direction: column; gap: 4%;
+  overflow: hidden;
+  background-image: radial-gradient(rgba(22,24,29,.08) 18%, transparent 20%);
+  background-size: 9px 9px;
+}
+.ph .num { font-family: var(--display); color: var(--magenta); line-height: 1; }
+.ph .where { font-family: var(--display); letter-spacing: 0.04em; line-height: 1.05; }
+.ph .desc { color: var(--ink-soft); line-height: 1.3; }
+.ph.active { outline: 6px solid var(--yellow); outline-offset: -6px; }
+.stage-label {
+  position: absolute; left: 12px; bottom: 12px; font-family: var(--display); letter-spacing: 0.06em;
+  font-size: 1.05rem; color: var(--paper); background: rgba(22,24,29,.75); padding: 3px 10px;
+}
+
+/* Side panel */
+.side { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-right: 4px; }
+.meter-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.meter-label { font-family: var(--display); font-size: 1.3rem; letter-spacing: 0.05em; }
+.meter { display: flex; gap: 5px; }
+.seg { width: 30px; height: 20px; border: 2.5px solid var(--line); background: var(--good); transition: background 400ms; }
+.seg.off { background: #fff; background-image: repeating-linear-gradient(45deg, rgba(215,38,61,.35) 0 4px, transparent 4px 8px); }
+.mood { font-weight: 700; font-size: 0.95rem; }
+.progress { font-family: var(--display); font-size: 1.05rem; letter-spacing: 0.06em; color: var(--ink-soft); }
+
+.caption {
+  background: var(--yellow); border: 3px solid var(--line); padding: 10px 14px;
+  font-weight: 700; font-size: 1.15rem; box-shadow: 4px 4px 0 var(--line);
+}
+.bubble {
+  position: relative; background: #fff; border: 3px solid var(--line); border-radius: 22px;
+  padding: 14px 18px; font-size: 1.35rem; line-height: 1.35;
+}
+.bubble::after {
+  content: ""; position: absolute; left: -16px; bottom: 14px; width: 18px; height: 20px;
+  background: #fff; border-left: 3px solid var(--line); border-bottom: 3px solid var(--line);
+  transform: skewY(-35deg); transform-origin: top right;
+}
+.line.nar .bubble::after { display: none; }
+.bubble .who { display: block; font-family: var(--display); font-size: 1.1rem; letter-spacing: 0.06em; color: var(--magenta); margin-bottom: 2px; }
+.bubble + .bubble { margin-top: 10px; }
+.line { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: end; }
+.line.nar { grid-template-columns: minmax(0, 1fr); }
+.line .bubble { min-width: 0; }
+.face { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--line); object-fit: cover; background: #fff; display: block; }
+.face.sm { width: 56px; height: 56px; }
+.face.lg { width: 96px; height: 96px; }
+.cast { display: flex; flex-wrap: wrap; gap: 14px 18px; }
+.cast figure { margin: 0; display: grid; justify-items: center; gap: 4px; text-align: center; width: 104px; }
+.cast figcaption { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
+.cast figcaption small { display: block; font-weight: 400; color: var(--ink-soft); font-size: 0.8rem; }
+.meter-row .who-mood { display: flex; align-items: center; gap: 10px; }
+.result-head { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.result-head .stamp { margin-bottom: 0; }
+.note { border: 3px solid var(--line); background: #eaf7fd; padding: 12px 16px; box-shadow: 4px 4px 0 var(--line); }
+.note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 6px; }
+.note-title { font-family: var(--display); font-size: 1.4rem; letter-spacing: 0.05em; color: var(--ink); }
+.chip { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; background: var(--yellow); border: 2px solid var(--line); padding: 2px 8px; }
+.note p { margin: 0; font-size: 1.15rem; }
+.log-it { margin-top: 8px; font-weight: 700; font-size: 0.95rem; color: var(--ink-soft); }
+.uprow .row-actions { display: flex; gap: 8px; grid-column: 1 / -1; }
+.prompt { font-family: var(--display); font-size: 1.35rem; letter-spacing: 0.05em; margin-top: 8px; }
+.choices { display: flex; flex-direction: column; gap: 10px; }
+.choice {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; text-align: left;
+  background: #fff; border: 3px solid var(--line); padding: 10px 14px; cursor: pointer;
+  font-family: var(--body); font-size: 1.15rem; color: var(--ink); box-shadow: 4px 4px 0 var(--line);
+  transition: transform 120ms, box-shadow 120ms;
+}
+.choice:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--line); }
+.choice .key {
+  font-family: var(--display); font-size: 1.5rem; width: 38px; height: 38px; display: grid; place-items: center;
+  background: var(--cyan); color: #fff; border: 2.5px solid var(--line);
+}
+.choice[disabled] { cursor: default; opacity: .45; transform: none; box-shadow: 4px 4px 0 var(--line); }
+.choice.picked { opacity: 1; }
+.choice.picked.right { background: #e6f6ec; }
+.choice.picked.wrong { background: #fde8eb; }
+
+.result { border: 3px solid var(--line); padding: 12px 16px; background: #fff; box-shadow: 4px 4px 0 var(--line); }
+.stamp {
+  display: inline-block; font-family: var(--display); font-size: 2.2rem; letter-spacing: 0.05em; line-height: 1;
+  padding: 4px 12px; border: 3px solid var(--line); transform: rotate(-3deg); margin-bottom: 8px; color: #fff;
+}
+.stamp.good { background: var(--good); }
+.stamp.bad { background: var(--bad); }
+.result p { margin: 0; font-size: 1.2rem; }
+.result .penalty { margin-top: 8px; font-weight: 700; color: var(--bad); font-size: 1rem; }
+
+.next {
+  align-self: flex-start; font-family: var(--display); font-size: 1.5rem; letter-spacing: 0.05em;
+  background: var(--magenta); color: #fff; border: 3px solid var(--line); padding: 8px 22px; cursor: pointer;
+  box-shadow: 4px 4px 0 var(--line);
+}
+.hint { font-size: 0.85rem; color: var(--ink-soft); }
+
+/* Intro / post / debrief */
+.title-card h2 { font-family: var(--display); font-size: 2.6rem; letter-spacing: 0.04em; line-height: 1; margin: 0; text-wrap: balance; }
+.title-card .place { font-weight: 700; font-size: 1.1rem; color: var(--magenta); text-transform: uppercase; letter-spacing: 0.08em; }
+.title-card p { font-size: 1.2rem; margin: 8px 0 0; }
+.post {
+  background: #fff; border: 2px solid #c9ccd4; border-radius: 10px; padding: 14px 16px; font-size: 1.1rem;
+}
+.post .head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--yellow); border: 2px solid var(--line); display: grid; place-items: center; font-family: var(--display); font-size: 1.3rem; }
+.post .name { font-weight: 700; line-height: 1.2; }
+.post .role { font-size: 0.85rem; color: var(--ink-soft); }
+.post .tags { color: #0a66c2; font-weight: 700; }
+.debrief { display: flex; flex-direction: column; gap: 8px; }
+.drow {
+  display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; align-items: start;
+  border: 2.5px solid var(--line); background: #fff; padding: 8px 12px; cursor: pointer; text-align: left;
+  font-family: var(--body); font-size: 1.05rem; color: var(--ink);
+}
+.drow .k { font-family: var(--display); font-size: 1.2rem; letter-spacing: 0.05em; }
+.drow .v.hidden { color: var(--ink-soft); font-style: italic; }
+.drow.revealed { background: #f0faff; }
+.final-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.final-card { border: 3px solid var(--line); background: #fff; padding: 10px 12px; box-shadow: 4px 4px 0 var(--line); }
+.final-card .t { font-family: var(--display); font-size: 1.2rem; letter-spacing: 0.04em; }
+.final-card .n { font-family: var(--display); font-size: 2.2rem; }
+
+/* Dialog */
+dialog { border: 3px solid var(--line); background: var(--paper); color: var(--ink); max-width: 560px; width: calc(100% - 32px); box-shadow: 8px 8px 0 var(--line); }
+dialog::backdrop { background: rgba(22,24,29,.55); }
+dialog h3 { font-family: var(--display); font-size: 1.8rem; letter-spacing: 0.05em; margin: 0 0 6px; }
+.uprow { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1.5px dashed #b8bcc6; }
+.uprow label { font-weight: 700; }
+.uprow .status { font-size: 0.85rem; color: var(--ink-soft); grid-column: 1 / -1; }
+.uprow input { grid-column: 1 / -1; max-width: 100%; }
+
+@media (max-width: 820px) {
+  .main { grid-template-columns: minmax(0, 1fr); grid-template-rows: 46vh auto; }
+  .side { overflow: visible; }
+  .bubble { font-size: 1.15rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page, .choice, .seg { transition: none; }
+}
+</style>
+<style>*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}img{max-width:100%}body{margin:0}</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Chad's <span>World Tour</span></div>
+    <nav class="tabs" id="tabs" aria-label="Scenarios"></nav>
+    <button class="iconbtn" id="openPages" type="button">Comic pages</button>
+  </header>
+  <main class="main">
+    <section class="stage" id="stage" aria-label="Comic page">
+      <div class="page" id="page"></div>
+      <div class="stage-label" id="stageLabel"></div>
+    </section>
+    <aside class="side" id="side" aria-live="polite"></aside>
+  </main>
+</div>
+
+<dialog id="pagesDialog">
+  <h3>Comic pages</h3>
+  <p class="hint">All four pages are built in. To swap one for a new version, load it here. Swapped pages stay saved in this browser.</p>
+  <div id="uploads"></div>
+  <p style="margin-top:12px"><button class="iconbtn" id="closePages" type="button">Done</button></p>
+</dialog>
+
+<script>
+const SCENARIOS = [
+{
+  id: "china", tab: "1. The Gift", title: "The Gift", place: "Shanghai, China",
+  meter: "Chad's Trust Meter",
+  intro: "Chad is meeting Mr. Liang Wei, the 64-year-old CEO of a family-owned factory. This meeting is about building trust. Chad has brought a gift. Chad is very excited about the gift.",
+  beats: [
+    { where: "Hotel room", desc: "Chad wraps a brass desk clock in white paper.",
+      caption: "Shanghai. The night before the big meeting.",
+      lines: [["Chad", "Team! I got Mr. Liang a brass desk clock. ENGRAVED. I’m wrapping it in this classy white paper. Clean. Professional. Thoughts?"]],
+      options: [
+        { t: "Love it. White paper looks clean and professional.", ok: false, r: "In Mandarin, “giving a clock” sounds like attending someone’s funeral. White is the color of mourning. Chad has wrapped a funeral wish in funeral paper." },
+        { t: "Swap the clock for a new gift, wrapped in red.", ok: true, r: "Chad swaps the clock for a box of Ohio buckeye candies in red paper. “Red means luck? I’m basically a lucky charm now.”" },
+        { t: "Keep the clock, but switch to red wrapping paper.", ok: false, r: "The paper is lucky now. The clock inside still sounds like “I’ll see you at your funeral.” There is no half credit in diplomacy." }
+      ] },
+    { where: "Office lobby", desc: "Chad walks past Mr. Liang, fist out toward a young assistant.",
+      caption: "The next morning. The lobby of Liang Industries.",
+      lines: [["Chad", "That young guy looks like my kind of dude. Fist bump time! The older gentleman can wait a sec."]],
+      options: [
+        { t: "Let him go for the fist bump.", ok: false, r: "The assistant freezes with his fist half raised, glancing at his boss. Mr. Liang smiles politely. Chad just skipped the most senior person in the room." },
+        { t: "Fist-bump everyone at once to save time.", ok: false, r: "Chad holds his fist out toward a 64-year-old CEO. It hangs in the air for a very long three seconds." },
+        { t: "Greet Mr. Liang first, with a nod.", ok: true, r: "Chad greets Mr. Liang first. Mr. Liang nods warmly. Chad whispers, “Respecting elders. I’m a natural.”" }
+      ] },
+    { where: "Meeting table", desc: "Chad slides the wrapped gift across the table with one hand.",
+      caption: "The meeting room. Tea has been served.",
+      lines: [["Chad", "Gift time! I’m gonna slide this across the table like a bartender in a cowboy movie. Watch this."]],
+      options: [
+        { t: "Have him stand and offer it with both hands.", ok: true, r: "Chad stands, holds out the gift with both hands, and gives a small nod. Mr. Liang looks genuinely pleased." },
+        { t: "Let him slide it. The gift is what counts.", ok: false, r: "The box skids across the table and bumps Mr. Liang’s teacup. In China, how you give a gift matters as much as the gift." },
+        { t: "Have him hand it to the assistant to pass along.", ok: false, r: "The assistant awkwardly delivers the gift. Mr. Liang wonders why Chad couldn’t give it himself." }
+      ] },
+    { where: "Polite refusal", desc: "Mr. Liang raises a hand to decline. Chad pulls the gift back.",
+      caption: "Mr. Liang raises a hand. “Oh, you are too kind. I cannot accept this.”",
+      lines: [["Chad", "Oh. Cool, cool, cool. More for me, I guess!"]],
+      options: [
+        { t: "Let him keep it. No means no.", ok: false, r: "Chad tucks the gift under his arm. Mr. Liang’s refusal was polite custom, not a real no. Now he has been offered a gift and had it taken away." },
+        { t: "Tell him to gently offer it again.", ok: true, r: "Chad offers again. Mr. Liang declines once more, then accepts with both hands and a smile. The dance is complete." },
+        { t: "Tell him to wait for Mr. Liang to ask for it later.", ok: false, r: "Mr. Liang never asks. Asking would be rude. The gift rides back to Toledo in Chad’s carry-on." }
+      ] },
+    { where: "The reveal", desc: "Chad leans over the table, urging Mr. Liang to open the gift.",
+      caption: "Mr. Liang sets the gift carefully to one side.",
+      lines: [["Chad", "Open it! Open it! Come on, buddy, I wanna see your face when you see it!"]],
+      options: [
+        { t: "Let him keep cheering. Excitement is contagious.", ok: false, r: "Mr. Liang opens it to be polite, looking uncomfortable. Gifts are usually opened later, in private. Chad gives himself a high five anyway." },
+        { t: "Have him open it himself to save Mr. Liang time.", ok: false, r: "Chad rips open his own gift in front of everyone. The room goes very quiet." },
+        { t: "Tell him to relax. It will be opened later.", ok: true, r: "Chad sits back. “Mystery. I like it.” Mr. Liang will open it tonight, in private, as is customary." }
+      ] },
+    { where: "Return gift", desc: "Mr. Liang offers a tin of hometown tea. Chad holds up an energy drink.",
+      caption: "Mr. Liang presents a small tin with both hands. “Tea from my home village. My family has grown it for generations.”",
+      lines: [["Chad", "Ah, thanks, buddy, but I’m more of an energy drink guy. Got any of the blue kind?"]],
+      options: [
+        { t: "Accept it with both hands and say thank you.", ok: true, r: "Chad accepts the tin with both hands. “This means a lot. Seriously.” Mr. Liang beams. That tea has history." },
+        { t: "Let him explain that he doesn’t drink tea.", ok: false, r: "Chad turns down a family tradition passed down for generations in favor of a gas station can. Mr. Liang’s smile holds, barely." },
+        { t: "Have him accept it, then pass it to the assistant.", ok: false, r: "Chad hands the family tea to the assistant like a coat check ticket. Mr. Liang notices." }
+      ] }
+  ],
+  post: "Just wrapped an AMAZING week in Shanghai. Biggest lesson? People are the same everywhere. Everybody loves a good clock. Grateful for the journey.",
+  tags: "#Leadership #GlobalMindset #ClockWisdom",
+  debrief: [
+    ["Taboo", "Giving a clock as a gift (also: opening a gift in front of the giver)"],
+    ["Artifact", "The clock (also: the wrapping paper, the tin of tea)"],
+    ["Mentifact", "The belief that “giving a clock” sounds like attending a funeral; white means mourning, red means luck"],
+    ["Sociofact", "Guanxi: business built on personal relationships, respect for seniority, and gift rituals"],
+    ["Folk culture", "Mr. Liang’s hometown tea, grown the same way for generations"],
+    ["Popular culture", "Chad’s mass-produced clock and his energy drink"],
+    ["Ethnocentrism", "Chad assumed white paper and a nice clock mean the same thing everywhere"]
+  ]
+},
+{
+  id: "japan", tab: "2. The Card", title: "The Card", place: "Tokyo, Japan",
+  meter: "Chad's Trust Meter",
+  intro: "Chad is meeting the leadership team of an electronics company led by its president, Ms. Tanaka Yumiko. After the meeting, the team is taking Chad out for dinner and a night on the town.",
+  beats: [
+    { where: "Conference room", desc: "Chad holds his fist out to a nervous intern. Ms. Tanaka stands at the head of the table.",
+      caption: "Tokyo. A sleek conference room, 30 floors up.",
+      lines: [["Chad", "Big room, lots of people! I’ll start with the intern by the door and work my way up. Fist bumps for everybody!"]],
+      options: [
+        { t: "Have him bow slightly to Ms. Tanaka first.", ok: true, r: "Chad gives Ms. Tanaka a small bow. She returns it. The room relaxes. Chad mouths to you: “Nailed it.”" },
+        { t: "Let him start the fist bump line.", ok: false, r: "The intern looks at Ms. Tanaka in panic. Chad has just greeted the lowest-ranking person in the room first, in front of the president." },
+        { t: "Have him shake hands, starting nearest the door.", ok: false, r: "A handshake is okay, but Chad still started with the intern. The president waits her turn. Presidents do not usually wait their turn." }
+      ] },
+    { where: "Card exchange", desc: "Ms. Tanaka offers her card with both hands. Chad grabs it with one hand, eyes on his phone.",
+      caption: "Ms. Tanaka bows slightly and offers her business card with both hands.",
+      lines: [["Chad", "Sweet, thanks!"], ["Narrator", "(Chad reaches for it with one hand. His eyes are still on his phone.)"]],
+      options: [
+        { t: "Let him grab it. It’s just a card.", ok: false, r: "Chad snatches the card one-handed without looking. In Japan, a business card stands for the person. Chad just snatched Ms. Tanaka." },
+        { t: "Have him take it with both hands and read it.", ok: true, r: "Chad puts the phone away, takes the card with both hands, and actually reads it. “President. Wow.” Ms. Tanaka nods, pleased." },
+        { t: "Have him hand her his own card before taking hers.", ok: false, r: "Chad thrusts his card at her mid-bow. Now two people are holding cards awkwardly in the air. Nobody knows what happens next." }
+      ] },
+    { where: "Mid-meeting", desc: "Chad scribbles on the back of the business card.",
+      caption: "Hour two of the meeting. Chad’s stomach growls.",
+      lines: [["Chad", "I’m starving. Let me jot down my lunch order real quick. This card has a nice blank back."]],
+      options: [
+        { t: "Let him write. He’ll be quick about it.", ok: false, r: "Chad writes “2 spicy tuna rolls, extra wasabi” on the president’s card while she watches. Writing on someone’s card is like writing on their face." },
+        { t: "Have him write small, in the corner only.", ok: false, r: "Small handwriting is still handwriting. Ms. Tanaka sees “TUNA” in tiny letters on her own name." },
+        { t: "Stop him. Never write on her card.", ok: true, r: "Chad uses the hotel notepad instead. The card stays on the table in front of him, untouched, right where it belongs." }
+      ] },
+    { where: "Leaving", desc: "Chad stuffs the business card into his back pocket.",
+      caption: "The meeting ends. Everyone stands.",
+      lines: [["Chad", "Meeting’s over! Card goes in the back pocket. Safe and sound, baby."]],
+      options: [
+        { t: "Have him use a card case or front pocket.", ok: true, r: "Chad slips the card carefully into his jacket pocket. Ms. Tanaka gives a small, approving nod." },
+        { t: "Let him. A back pocket is very secure.", ok: false, r: "Chad tucks the card into his back pocket and sits on it in the taxi. He is literally sitting on the company president." },
+        { t: "Have him leave it on the table for later.", ok: false, r: "Chad leaves the card behind on the table. An assistant finds it after he leaves. That card was Ms. Tanaka." }
+      ] },
+    { where: "Family restaurant", desc: "Chad slaps a pile of cash on the table at a tiny family restaurant.",
+      caption: "Dinner at a tiny family restaurant. The chef’s grandmother created this dish 60 years ago.",
+      lines: [["Chad", "That was INCREDIBLE. I’m leaving a 25% tip. Big tipper energy!"]],
+      options: [
+        { t: "Let him tip. Generosity is universal.", ok: false, r: "The server chases Chad two blocks down the street to return his “forgotten” money. In Japan, good service is part of the job." },
+        { t: "Have him thank the chef and skip the tip.", ok: true, r: "Chad bows to the chef and says thank you. The chef smiles. That thank-you was the tip." },
+        { t: "Have him leave a smaller tip, around 10 percent.", ok: false, r: "A smaller confusing tip is still a confusing tip. The server chases Chad one block instead of two." }
+      ] },
+    { where: "Karaoke", desc: "Chad grabs the karaoke mic, arms spread wide.",
+      caption: "Later that night. A neon-lit karaoke room.",
+      lines: [["Chad", "KARAOKE! You guys are so cool for loving American stuff! Hit it!"]],
+      options: [
+        { t: "Grab the mic. Singing in public is rude in Japan.", ok: false, r: "Chad freezes, mic half raised, while his hosts look confused. Karaoke is not rude in Japan. It was invented there." },
+        { t: "Let him sing, and let the karaoke comment slide.", ok: false, r: "Chad sings, then thanks everyone for “loving America’s greatest invention.” The team smiles politely. Karaoke was invented in Japan." },
+        { t: "Let him sing, but tell him karaoke is from Japan.", ok: true, r: "“Wait, it’s from HERE?” Chad belts out a power ballad, badly. Everyone cheers anyway. Karaoke really did go global." }
+      ] }
+  ],
+  post: "Tokyo taught me that business cards are just paper, but RELATIONSHIPS are forever. Also, Japan really embraced American karaoke culture. Respect.",
+  tags: "#Networking #Hustle #KaraokeKing",
+  debrief: [
+    ["Taboo", "Writing on someone’s business card (also: back pocket, tipping)"],
+    ["Artifact", "The business card, or meishi (also: the karaoke microphone)"],
+    ["Mentifact", "The belief that the card represents the person, so disrespecting it disrespects them"],
+    ["Sociofact", "The company’s ranking system (seniority) that decides who is greeted first"],
+    ["Folk culture", "The family restaurant’s dish from the grandmother’s 60-year-old recipe"],
+    ["Popular culture", "Karaoke, invented in Japan and spread around the world"],
+    ["Ethnocentrism", "Chad assumed karaoke was American and that tipping is polite everywhere"]
+  ]
+},
+{
+  id: "thailand", tab: "3. The Temple", title: "The Temple", place: "Bangkok, Thailand",
+  meter: "Chad's Trust Meter",
+  intro: "The deal is done. Chad’s Thai partner, Mr. Somchai, is taking Chad to visit Wat Pho, one of Bangkok’s oldest Buddhist temples. Mr. Somchai’s young son is coming too.",
+  beats: [
+    { where: "Temple gate", desc: "Chad arrives at the temple in a tank top, cargo shorts, and sunglasses.",
+      caption: "Bangkok. The gate of Wat Pho. It is 93°F.",
+      lines: [["Chad", "Temple day! Tank top, cargo shorts, aviators. Comfortable AND iconic."]],
+      options: [
+        { t: "Let him in. It’s really hot out.", ok: false, r: "A guard stops Chad at the gate and hands him a rented wraparound skirt. Shoulders and knees must be covered at a temple." },
+        { t: "Have him cover his shoulders and knees.", ok: true, r: "Chad changes into long pants and a shirt with sleeves. He sweats through both. Mr. Somchai nods with respect." },
+        { t: "Have him at least take off the sunglasses.", ok: false, r: "Chad removes the aviators. The tank top and shorts stay. The guard is not impressed by the sunglasses gesture." }
+      ] },
+    { where: "Temple steps", desc: "Rows of shoes line the steps. Chad walks up in his white sneakers.",
+      caption: "The steps of the temple hall. Dozens of shoes are lined up neatly outside.",
+      lines: [["Chad", "Weird place to leave your shoes. Mine are staying on. These are brand new."]],
+      options: [
+        { t: "Have him wipe his shoes off first.", ok: false, r: "Clean shoes are still shoes. Chad squeaks into the hall in his sneakers while barefoot worshippers stare." },
+        { t: "Have him take his shoes off too.", ok: true, r: "Chad lines his sneakers up next to everyone else’s. “I’m kind of proud of how neat that row looks.”" },
+        { t: "Let him walk in. His sneakers are clean.", ok: false, r: "Chad walks into a sacred hall with his shoes on. The row of shoes outside was not a coincidence." }
+      ] },
+    { where: "Flower stall", desc: "Chad offers his blue company stress ball to a vendor selling jasmine garlands.",
+      caption: "Local vendors sell hand-strung jasmine garlands to offer at the temple.",
+      lines: [["Chad", "Why buy flowers? I’ll offer this Big Lake Pipe & Valve stress ball. Way more memorable."]],
+      options: [
+        { t: "Have him buy a jasmine garland to offer.", ok: true, r: "Chad buys a garland from an elderly vendor who has strung them by hand for decades. “Smells better than the stress ball, honestly.”" },
+        { t: "Let him offer the stress ball.", ok: false, r: "Chad places a foam stress ball with a company logo at a sacred shrine. Mr. Somchai quietly removes it." },
+        { t: "Have him offer his business card instead.", ok: false, r: "Chad leaves a business card at the shrine. A temple is not a networking event." }
+      ] },
+    { where: "Reclining Buddha", desc: "Chad sits with his legs stretched out, feet pointing toward the giant golden Buddha.",
+      caption: "Inside the hall: the Reclining Buddha, 46 meters long and covered in gold leaf.",
+      lines: [["Chad", "Whew, I’m beat. Let me just stretch my legs out right here. Ahhhh."]],
+      options: [
+        { t: "Let him stretch. He’s been walking all day.", ok: false, r: "Chad points the soles of his feet straight at the Buddha. Feet are the lowest part of the body. Several visitors gasp." },
+        { t: "Have him tuck his feet away from the Buddha.", ok: true, r: "Chad tucks his feet to the side. “Is this a yoga thing?” Mr. Somchai smiles. Close enough." },
+        { t: "Have him stretch, but take his socks off first.", ok: false, r: "Now Chad’s bare feet are pointing at the Buddha. This is worse. This is so much worse." }
+      ] },
+    { where: "Courtyard", desc: "Chad reaches to pat Mr. Somchai's young son on the head.",
+      caption: "Out in the courtyard, Mr. Somchai’s son shows Chad a stone lion.",
+      lines: [["Chad", "Look at this little guy! Atta boy, buddy!"], ["Narrator", "(Chad reaches toward the boy’s head.)"]],
+      options: [
+        { t: "Have him gently ruffle the boy’s hair.", ok: false, r: "Gentle or not, Chad touched the boy’s head, the most sacred part of the body. Mr. Somchai’s smile tightens." },
+        { t: "Let him. It’s a friendly gesture back home.", ok: false, r: "Chad pats the boy on the head like a Little League coach. The boy looks at his father. His father looks at Chad." },
+        { t: "Have him smile and wave instead.", ok: true, r: "Chad waves. The boy waves back and shows Chad the proper way to do a wai. Chad’s wai is terrible, but sincere." }
+      ] },
+    { where: "Selfie time", desc: "Chad starts to climb a statue with his phone held high. Mr. Somchai covers his eyes.",
+      caption: "Golden hour. The light is perfect.",
+      lines: [["Chad", "This statue is PERFECT for a selfie. I just gotta climb up a little..."]],
+      options: [
+        { t: "Have him sit on its base instead.", ok: false, r: "Sitting on a sacred statue is still using it as furniture. A guard walks over, fast." },
+        { t: "Have him take a photo from the ground.", ok: true, r: "Chad takes a respectful photo from a distance. It is honestly his best photo of the trip." },
+        { t: "Let him climb. The photo will be amazing.", ok: false, r: "Chad gets one foot up before two guards and a monk arrive. The photo is blurry. The lecture is not." }
+      ] }
+  ],
+  post: "Visited an incredible temple in Bangkok today. Felt so at home that I treated it like my own living room. That’s what being a global citizen is all about.",
+  tags: "#Wanderlust #Blessed #LeadFromTheFront",
+  debrief: [
+    ["Taboo", "Touching someone’s head (also: pointing feet at a Buddha image, shoes inside, climbing statues)"],
+    ["Artifact", "The Reclining Buddha (also: Chad’s shoes or tank top, the garland)"],
+    ["Mentifact", "The Buddhist belief that the head is sacred and the feet are the lowest part of the body"],
+    ["Sociofact", "Buddhism and the community of monks who keep the temple"],
+    ["Folk culture", "Hand-strung jasmine garlands (phuang malai) sold by local vendors"],
+    ["Popular culture", "Chad’s Instagram selfie (also: his branded stress ball)"],
+    ["Ethnocentrism", "Chad treated a place of worship like a theme park and the boy like a Little League player"]
+  ]
+},
+{
+  id: "ohio", tab: "4. Chad's Revenge", title: "Chad's Revenge", place: "Toledo, Ohio, USA",
+  meter: "Hao's Trust Meter",
+  intro: "Plot twist! Mr. Liang’s nephew, Liang Hao, is visiting the United States for the first time. Chad invited him to Thanksgiving with the Brickman family. This time you are advising Hao, and the strange culture is Chad’s.",
+  beats: [
+    { where: "Front porch", desc: "Chad flings open the door. Hao arrives empty-handed.",
+      caption: "Thanksgiving Day. Toledo, Ohio.",
+      lines: [["Chad", "Just come over, buddy! Don’t bring anything!"], ["Hao", "He said bring nothing. So I am bringing nothing. That is what he said, right?"]],
+      options: [
+        { t: "Show up empty-handed. Chad said to.", ok: false, r: "Hao arrives with nothing. Nobody says anything, but Aunt Linda notices. “Don’t bring anything” is something Americans say even when they hope you will." },
+        { t: "Bring a small dessert or side dish.", ok: true, r: "Hao arrives with a pie from a local bakery. Grandma squeezes his cheeks. He is now family." },
+        { t: "Bring an envelope of cash for the host.", ok: false, r: "Chad opens the envelope, confused. “Is this... rent?” Cash gifts are normal in some cultures, but not for Thanksgiving dinner." }
+      ] },
+    { where: "Dinner table", desc: "Hao lifts a forkful of food while Grandma is still carrying in the turkey.",
+      caption: "The table is set. Grandma is still bringing out dishes.",
+      lines: [["Hao", "The food is here. I am very hungry. I will begin."]],
+      options: [
+        { t: "Have him start with just the rolls for now.", ok: false, r: "Hao munches a roll while Grandma is still walking in with the turkey. Uncle Gary raises an eyebrow mid-sit." },
+        { t: "Let him eat. Food is meant to be eaten.", ok: false, r: "Hao is two bites in when everyone bows their heads for grace. He freezes, fork in midair, cheeks full." },
+        { t: "Have him wait for everyone and for grace.", ok: true, r: "Hao waits. The family goes around the table sharing what they are thankful for. Hao says, “Pie.” Everyone laughs." }
+      ] },
+    { where: "Living room", desc: "Hao walks in wearing a blue and yellow sweatshirt. The family in red and gray freezes.",
+      caption: "Hao bought a cozy blue and yellow sweatshirt at the airport. It says MICHIGAN.",
+      lines: [["Hao", "I bought a sweater with a wolverine on it. Very soft. I think everyone will like it."]],
+      options: [
+        { t: "Have him change it before he walks in.", ok: true, r: "Chad lends Hao an Ohio State hoodie. Uncle Gary says, “Now THAT’S a good-looking young man.” Disaster avoided." },
+        { t: "Let him wear it. It’s just a sweatshirt.", ok: false, r: "The room goes silent. Someone mutes the TV. Uncle Gary whispers, “Who let a Wolverine in here?” In a Buckeye house, it is never just a sweatshirt." },
+        { t: "Have him wear it inside out.", ok: false, r: "The block letters show right through. Grandma squints. “Is that... MICHIGAN backwards?” Somehow that is worse." }
+      ] },
+    { where: "Small talk", desc: "Hao chats with a startled middle-aged uncle on the couch.",
+      caption: "Halftime. Hao sits next to Uncle Gary on the couch.",
+      lines: [["Hao", "Uncle Gary seems very successful. I will ask him how much money he makes."]],
+      options: [
+        { t: "Let him ask. It’s an honest question.", ok: false, r: "Uncle Gary chokes on a chip. Americans usually treat salary as private, even with family. Aunt Linda now really wants to hear the answer." },
+        { t: "Have him ask about Gary’s job instead.", ok: true, r: "Hao asks what Gary does. Gary talks about plumbing supplies for 40 straight minutes. Hao has made a friend for life." },
+        { t: "Have him guess the number first, to be polite.", ok: false, r: "Hao guesses. He guesses high. Gary is flattered and offended at the same time." }
+      ] },
+    { where: "Seconds", desc: "Grandma holds out a bowl of stuffing. Hao raises his hand to decline.",
+      caption: "Grandma holds out the stuffing. Her handwritten recipe card is older than Chad.",
+      lines: [["Grandma", "More stuffing, honey?"], ["Hao", "No, thank you. (She will offer again. That is polite. Just like in China.)"]],
+      options: [
+        { t: "Have him decline twice, then accept.", ok: false, r: "Hao declines once. Grandma says “Okay!” and moves on. There is no second offer. The plan collapses." },
+        { t: "Let him decline. She will ask again.", ok: false, r: "Grandma says “Okay, dear!” and passes the bowl to Uncle Gary. She never asks again. In Toledo, “no, thank you” means no. Hao watches the stuffing disappear forever." },
+        { t: "Have him just say, “Yes, please!”", ok: true, r: "“Yes, please!” Grandma gives him a mountain of stuffing and the recipe card to photograph. Polite refusal is a custom in China, not in Ohio." }
+      ] },
+    { where: "Black Friday", desc: "5 a.m. in a dark parking lot. Chad drags a sleepy Hao toward a giant sale sign.",
+      caption: "5:00 a.m. Friday. A very dark mall parking lot.",
+      lines: [["Chad", "Wake up, buddy! It’s BLACK FRIDAY! TVs are 40% off!"], ["Hao", "...Why is it dark? Why is everyone running?"]],
+      options: [
+        { t: "Tell Chad this tradition makes no sense at all.", ok: false, r: "Hao calls Black Friday “a very strange custom.” Chad is hurt. Judging a culture by your own rules is exactly what Chad kept doing abroad." },
+        { t: "Go along and ask Chad about the tradition.", ok: true, r: "Hao gets coffee and asks questions. Chad explains Black Friday with great passion and zero accuracy. They leave with a TV and a friendship." },
+        { t: "Let him go back to sleep and skip it.", ok: false, r: "Hao sleeps in. Chad leaves a sad note on the door. It is not a disaster, but Hao misses his chance to see American culture up close." }
+      ] }
+  ],
+  post: "Hosted an international guest for Thanksgiving. He was SO confused by our customs. Wild that people don’t just know this stuff. ...Wait. Is this how I was acting?",
+  tags: "#Gratitude #FamilyFirst #OhGoshItWasMe",
+  debrief: [
+    ["Taboo", "Wearing Michigan gear in a Buckeye home (also: asking about salary, eating before grace)"],
+    ["Artifact", "The Thanksgiving turkey (also: the Michigan sweatshirt, the recipe card)"],
+    ["Mentifact", "Beliefs about gratitude and family togetherness (also: Buckeye loyalty, “no” means no)"],
+    ["Sociofact", "The family, and Thanksgiving as a national holiday (also: college football)"],
+    ["Folk culture", "Grandma’s handwritten stuffing recipe, passed down for generations"],
+    ["Popular culture", "NFL football on TV and Black Friday shopping"],
+    ["Ethnocentrism", "The Brickmans expected Hao to “just know” their rules, the same mistake Chad made abroad"]
+  ]
+}
+];
+
+
+/* Consultant's Notes: the cultural rule behind each panel, shown after every choice. */
+const NOTES = {
+  china: [
+    ["Mentifact", "In Mandarin, “giving a clock” (sòng zhōng) sounds like attending someone’s funeral. White is linked to mourning, while red and gold stand for luck and wealth. The belief about sounds and colors is what turns a nice clock into an insult."],
+    ["Sociofact", "Chinese business culture is organized around respect for seniority. The oldest and highest-ranking person is greeted first. Skipping him says you don’t know, or don’t care, who matters in the room."],
+    ["Cultural norm", "Gifts are offered and received with both hands as a sign of respect. In China, how you give a gift matters as much as what the gift is."],
+    ["Sociofact", "A polite refusal is part of the gift-giving ritual. The person receiving it may decline once or twice to be modest, and the giver is expected to gently offer again. The first “no” is good manners, not a real no."],
+    ["Cultural norm", "Gifts are traditionally opened later, in private. Opening one in front of the giver can seem greedy and puts everyone on the spot if the gift disappoints."],
+    ["Folk vs. popular culture", "Tea grown in the same village by the same family for generations is folk culture. A mass-produced energy drink sold everywhere is popular culture. Accepting a family tradition with respect builds guanxi, the trust that business relationships run on."]
+  ],
+  japan: [
+    ["Sociofact", "Traditional Japanese companies are organized by rank. Higher-ranking people are greeted first, usually with a slight bow. Starting with the intern ignores the whole structure of the room."],
+    ["Artifact + mentifact", "The business card (meishi) is an artifact, but the belief attached to it is the key: the card represents the person. Taking it with both hands and reading it shows respect for them."],
+    ["Taboo", "Writing on someone’s business card in front of them is taboo. Because the card stands for the person, marking it up is like writing on them."],
+    ["Taboo", "Stuffing a card into a back pocket means sitting on it, which means sitting on the person. Cards go in a card case or a front pocket."],
+    ["Mentifact", "In Japan, people believe good service is simply part of doing your job well. Tipping is not expected, and extra money can confuse a server. Back home, the belief is the opposite."],
+    ["Popular culture", "Karaoke was invented in Japan in the early 1970s and spread around the world. Assuming it is American is ethnocentrism: treating your own culture as the center of everything."]
+  ],
+  thailand: [
+    ["Sociofact", "More than 9 in 10 Thai people are Buddhist, and temples are active places of worship. Covering shoulders and knees shows respect for the religion and the people practicing it."],
+    ["Cultural norm", "Shoes come off before entering temple buildings. The rows of shoes outside were a clue: watching what local people do is a consultant’s best tool."],
+    ["Folk culture", "Hand-strung jasmine garlands (phuang malai), sold by local vendors, are a traditional temple offering passed down for generations. A branded stress ball is popular culture and does not belong at a shrine."],
+    ["Mentifact", "Thai Buddhists consider the feet the lowest and least clean part of the body. Pointing the soles of your feet at a Buddha image is deeply disrespectful."],
+    ["Taboo", "The head is considered the most sacred part of the body, so touching someone’s head is taboo, even a child’s. A friendly gesture in Ohio is an insult in Bangkok."],
+    ["Artifact", "Buddha images and temple statues are sacred artifacts, not props. Climbing on them for a photo treats a place of worship like a theme park."]
+  ],
+  ohio: [
+    ["Cultural norm", "Americans often say “don’t bring anything” just to be polite. Bringing a small dish or dessert is still a welcome gesture. Unwritten rules exist in every culture, including ours."],
+    ["Mentifact", "Thanksgiving centers on gratitude and family togetherness. Many families wait until everyone is seated and say grace or share what they are thankful for before eating."],
+    ["Taboo", "In a Buckeye household, wearing Michigan colors is a (mostly) friendly taboo. College football is a powerful sociofact in Ohio that shapes loyalties and even family gatherings."],
+    ["Taboo", "Most Americans treat salary as private, even among family. Asking how much someone makes can feel rude, though in some other cultures it is a normal question."],
+    ["Mentifact", "Americans usually take “no, thank you” at face value. The polite refusal that was good manners in Shanghai backfires in Toledo. The same behavior can mean different things in different cultures."],
+    ["Popular culture", "Black Friday is a mass-shopping tradition spread by stores and advertising, a clear example of popular culture. Asking questions instead of judging it is cultural relativism in action."]
+  ]
+};
+
+/* Default panel layout: 2 columns x 3 rows, as fractions of the page. */
+const DEFAULT_RECTS = (() => {
+  const xs = [0.03, 0.51], ys = [0.02, 0.345, 0.67], w = 0.46, h = 0.31, out = [];
+  ys.forEach(y => xs.forEach(x => out.push({ x, y, w, h })));
+  return out;
+})();
+const DEFAULT_RATIO = 1.5; // page height / width
+
+/* Built-in comic pages (768 x 1376) with measured panel boxes in pixels. */
+function gridRects(W, H, cols, rows) {
+  const out = [];
+  rows.forEach(([y0, y1]) => cols.forEach(([x0, x1]) => out.push({ x: x0 / W, y: y0 / H, w: (x1 - x0) / W, h: (y1 - y0) / H })));
+  return out;
+}
+const STD = gridRects(768, 1376, [[13, 375], [392, 754]], [[18, 449], [468, 907], [926, 1357]]);
+const PAGES = {
+  china: { url: "img/page-china.jpg", ratio: 1376 / 768, rects: gridRects(768, 1376, [[3, 377], [390, 764]], [[10, 451], [466, 909], [924, 1364]]) },
+  japan: { url: "img/page-japan.jpg", ratio: 1376 / 768, rects: STD },
+  thailand: { url: "img/page-thailand.jpg", ratio: 1376 / 768, rects: STD },
+  ohio: { url: "img/page-ohio.jpg", ratio: 1376 / 768, rects: STD },
+};
+
+const FACES = {
+  "chad-grin": "img/face-chad-grin.jpg", "chad-confused": "img/face-chad-confused.jpg", "chad-horrified": "img/face-chad-horrified.jpg",
+  liang: "img/face-liang.jpg", assistant: "img/face-assistant.jpg", tanaka: "img/face-tanaka.jpg", intern: "img/face-intern.jpg",
+  somchai: "img/face-somchai.jpg", son: "img/face-son.jpg", hao: "img/face-hao.jpg", "hao-confused": "img/face-hao-confused.jpg",
+  grandma: "img/face-grandma.jpg", gary: "img/face-gary.jpg",
+};
+const CAST = {
+  china: [["chad", "Chad Brickman", "Your client"], ["liang", "Mr. Liang Wei", "CEO, age 64"], ["assistant", "The assistant", "Mr. Liang's aide"]],
+  japan: [["chad", "Chad Brickman", "Your client"], ["tanaka", "Ms. Tanaka Yumiko", "Company president"], ["intern", "The intern", "First week on the job"]],
+  thailand: [["chad", "Chad Brickman", "Your client"], ["somchai", "Mr. Somchai", "Business partner"], ["son", "His son", "Age 7"]],
+  ohio: [["hao", "Liang Hao", "Your new client"], ["chad", "Chad Brickman", "The host"], ["grandma", "Grandma Brickman", "Stuffing legend"], ["gary", "Uncle Gary", "Buckeye superfan"]],
+};
+function chadFace(m) { return FACES[m >= 4 ? "chad-grin" : m >= 2 ? "chad-confused" : "chad-horrified"]; }
+function faceFor(who, line) {
+  const m = state.meters[state.sc];
+  if (who === "Chad") return chadFace(state.sc === 3 ? 5 : m);
+  if (who === "Hao") return FACES[/\?|\.\.\./.test(line) ? "hao-confused" : "hao"];
+  if (who === "Grandma") return FACES.grandma;
+  return null;
+}
+function castFace(key) { return key === "chad" ? FACES["chad-grin"] : FACES[key]; }
+
+const state = {
+  sc: 0,
+  phase: "intro",       // intro | beat | result | post | debrief | final
+  beat: 0,
+  picked: null,
+  meters: SCENARIOS.map(() => 5),
+  done: SCENARIOS.map(() => false),
+  log: SCENARIOS.map(() => []),   // picked option index per beat
+  revealed: new Set(),
+  images: Object.fromEntries(Object.entries(PAGES).map(([k, v]) => [k, { ...v }])),  // scenario id -> { url, ratio, rects }
+};
+
+const $ = s => document.querySelector(s);
+const stage = $("#stage"), page = $("#page"), side = $("#side"), tabs = $("#tabs"), stageLabel = $("#stageLabel");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ---------- Page rendering and zoom ---------- */
+function ratioFor(sc) { return state.images[sc.id]?.ratio || DEFAULT_RATIO; }
+function rectsFor(sc) { return state.images[sc.id]?.rects || DEFAULT_RECTS; }
+
+function buildPage() {
+  const sc = SCENARIOS[state.sc];
+  const img = state.images[sc.id];
+  let html = "";
+  if (img) html = `<img src="${img.url}" alt="Comic page for ${esc(sc.title)}">`;
+  else {
+    sc.beats.forEach((b, i) => {
+      const r = rectsFor(sc)[i];
+      html += `<div class="ph" data-i="${i}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%">
+        <div class="num">${i + 1}</div><div class="where">${esc(b.where)}</div><div class="desc">${esc(b.desc)}</div></div>`;
+    });
+  }
+  page.innerHTML = html;
+  layout();
+}
+
+function layout() {
+  const sc = SCENARIOS[state.sc];
+  const VW = stage.clientWidth, VH = stage.clientHeight;
+  if (!VW || !VH) return;
+  const ratio = ratioFor(sc);
+  const PW = Math.min(VW * 0.94, (VH * 0.94) / ratio), PH = PW * ratio;
+  page.style.width = PW + "px";
+  page.style.height = PH + "px";
+  // Scale placeholder type to page size
+  page.querySelectorAll(".ph").forEach(el => {
+    el.querySelector(".num").style.fontSize = PW * 0.07 + "px";
+    el.querySelector(".where").style.fontSize = PW * 0.05 + "px";
+    el.querySelector(".desc").style.fontSize = PW * 0.028 + "px";
+    el.classList.toggle("active", zoomIndex() === +el.dataset.i);
+  });
+  const zi = zoomIndex();
+  let tx, ty, s;
+  if (zi === null) { s = 1; tx = (VW - PW) / 2; ty = (VH - PH) / 2; }
+  else {
+    const r = rectsFor(sc)[zi];
+    const rx = r.x * PW, ry = r.y * PH, rw = r.w * PW, rh = r.h * PH;
+    s = Math.min((VW * 0.94) / rw, (VH * 0.94) / rh);
+    tx = VW / 2 - (rx + rw / 2) * s;
+    ty = VH / 2 - (ry + rh / 2) * s;
+  }
+  page.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+  stageLabel.textContent = zi === null ? `${sc.place}` : `Panel ${zi + 1}: ${sc.beats[zi].where}`;
+}
+function zoomIndex() { return (state.phase === "beat" || state.phase === "result") ? state.beat : null; }
+
+/* ---------- Side panel ---------- */
+function meterHTML() {
+  const sc = SCENARIOS[state.sc], m = state.meters[state.sc];
+  let segs = "";
+  for (let i = 0; i < 5; i++) segs += `<div class="seg ${i < m ? "" : "off"}"></div>`;
+  const mood = m >= 5 ? "Flawless" : m >= 4 ? "Solid" : m >= 3 ? "Shaky" : m >= 2 ? "Yikes" : m >= 1 ? "Disaster" : "Total meltdown";
+  const face = state.sc === 3 ? FACES[m >= 3 ? "hao" : "hao-confused"] : chadFace(m);
+  return `<div class="meter-row"><div class="who-mood"><img class="face sm" src="${face}" alt=""><div><div class="meter-label">${esc(sc.meter)}</div><div class="mood">${m} / 5 &middot; ${mood}</div></div></div>
+    <div class="meter" role="img" aria-label="${m} out of 5">${segs}</div></div>`;
+}
+
+function render() {
+  const sc = SCENARIOS[state.sc];
+  renderTabs();
+  let h = "";
+  if (state.phase === "intro") {
+    h = `<div class="title-card"><div class="place">${esc(sc.place)}</div><h2>${esc(sc.title)}</h2><p>${esc(sc.intro)}</p></div>
+      <div class="prompt">Who you'll meet</div>
+      <div class="cast">${CAST[sc.id].map(([k, n, r]) => `<figure><img class="face lg" src="${castFace(k)}" alt=""><figcaption>${esc(n)}<small>${esc(r)}</small></figcaption></figure>`).join("")}</div>
+      ${meterHTML()}
+      <p class="hint">Six decisions. Mistakes are permanent. Check your Cultural Guide Booklet before you choose.</p>
+      <button class="next" id="go" type="button">Start the mission</button>`;
+  } else if (state.phase === "beat" || state.phase === "result") {
+    const b = sc.beats[state.beat];
+    const keys = ["A", "B", "C"];
+    h = `<div class="progress">Panel ${state.beat + 1} of ${sc.beats.length}</div>
+      <div class="caption">${esc(b.caption)}</div>
+      ${b.lines.map(([who, line]) => {
+        const f = faceFor(who, line);
+        return f ? `<div class="line"><img class="face" src="${f}" alt="${esc(who)}"><div class="bubble"><span class="who">${esc(who)}</span>${esc(line)}</div></div>`
+                 : `<div class="line nar"><div class="bubble"><span class="who">${esc(who)}</span>${esc(line)}</div></div>`;
+      }).join("")}
+      <div class="prompt">${state.sc === 3 ? "What should Hao do?" : "Consultants, what's the call?"}</div>
+      <div class="choices">${b.options.map((o, i) => {
+        const cls = state.phase === "result" && state.picked === i ? `picked ${o.ok ? "right" : "wrong"}` : "";
+        return `<button class="choice ${cls}" data-i="${i}" type="button" ${state.phase === "result" ? "disabled" : ""}><span class="key">${keys[i]}</span><span>${esc(o.t)}</span></button>`;
+      }).join("")}</div>`;
+    if (state.phase === "result") {
+      const o = b.options[state.picked];
+      const last = state.beat === sc.beats.length - 1;
+      const rf = state.sc === 3 ? FACES[o.ok ? "hao" : "hao-confused"] : FACES[o.ok ? "chad-grin" : "chad-horrified"];
+      h += `<div class="result"><div class="result-head"><img class="face" src="${rf}" alt=""><div class="stamp ${o.ok ? "good" : "bad"}">${o.ok ? pick(["Smooth!", "Crisis averted!", "Nice save!"], state.beat) : pick(["Yikes!", "Oof!", "Disaster!"], state.beat)}</div></div>
+        <p>${esc(o.r)}</p>${o.ok ? "" : `<div class="penalty">Trust Meter drops by 1.</div>`}</div>
+        <div class="note"><div class="note-head"><span class="note-title">Consultant’s Note</span><span class="chip">${esc(NOTES[sc.id][state.beat][0])}</span></div>
+        <p>${esc(NOTES[sc.id][state.beat][1])}</p>
+        <div class="log-it">Log it: Panel ${state.beat + 1} &middot; Choice ${"ABC"[state.picked]} &middot; ${o.ok ? "✓ Right" : "✗ Wrong"}</div></div>
+        ${meterHTML()}
+        <button class="next" id="go" type="button">${last ? "See the aftermath" : "Next panel"}</button>`;
+    } else {
+      h += meterHTML() + `<p class="hint">Keys 1, 2, 3 pick an answer. Arrow keys move on.</p>`;
+    }
+  } else if (state.phase === "post") {
+    const isHao = state.sc === 3;
+    h = `<div class="title-card"><div class="place">The aftermath</div><h2>Chad posted about it</h2></div>
+      <div class="post"><div class="head"><div class="avatar">C</div><div><div class="name">Chad Brickman</div><div class="role">Regional VP of Sales, Big Lake Pipe &amp; Valve &middot; Thought Leader</div></div></div>
+      <p style="margin:0 0 6px">${esc(sc.post)}</p><div class="tags">${esc(sc.tags)}</div></div>
+      ${meterHTML()}
+      <p class="hint">${isHao ? "Discuss: what did the Brickmans have in common with Chad abroad?" : "Discuss: what did Chad get wrong in this post?"}</p>
+      <button class="next" id="go" type="button">Consultant debrief</button>`;
+  } else if (state.phase === "debrief") {
+    h = `<div class="title-card"><div class="place">${esc(sc.place)}</div><h2>Consultant debrief</h2>
+      <p>Discuss each row with your group first. Then click to reveal and check your handout.</p></div>
+      <div class="debrief">${sc.debrief.map(([k, v], i) => {
+        const on = state.revealed.has(i);
+        return `<button class="drow ${on ? "revealed" : ""}" data-i="${i}" type="button"><span class="k">${esc(k)}</span><span class="v ${on ? "" : "hidden"}">${on ? esc(v) : "Click to reveal"}</span></button>`;
+      }).join("")}</div>
+      <button class="next" id="go" type="button">${state.sc < SCENARIOS.length - 1 ? "Next destination" : "Final results"}</button>`;
+  } else if (state.phase === "final") {
+    h = `<div class="title-card"><div class="place">Mission complete</div><h2>The World Tour Report</h2>
+      <p>Here is how your firm did across all four stops.</p></div>
+      <div class="final-grid">${SCENARIOS.map((s, i) => `<div class="final-card"><div class="t">${esc(s.title)}</div><div class="n">${state.done[i] ? state.meters[i] : "&ndash;"}<small style="font-size:1rem"> / 5</small></div><div class="hint">${esc(s.place)}</div></div>`).join("")}</div>
+      <p style="font-size:1.15rem">Final question: Chad and the Brickman family made the same kind of mistake. What was it, and why is it so easy to make?</p>
+      <button class="iconbtn" id="reset" type="button">Reset the whole tour</button>`;
+  }
+  side.innerHTML = h;
+  side.scrollTop = 0;
+  const go = $("#go");
+  if (go) go.addEventListener("click", advance);
+  side.querySelectorAll(".choice:not([disabled])").forEach(btn => btn.addEventListener("click", () => choose(+btn.dataset.i)));
+  side.querySelectorAll(".drow").forEach(btn => btn.addEventListener("click", () => {
+    const i = +btn.dataset.i; state.revealed.has(i) ? state.revealed.delete(i) : state.revealed.add(i); render();
+  }));
+  const reset = $("#reset");
+  if (reset) reset.addEventListener("click", resetAll);
+  layout();
+}
+function pick(arr, i) { return arr[i % arr.length]; }
+
+function renderTabs() {
+  tabs.innerHTML = SCENARIOS.map((s, i) =>
+    `<button class="tab" type="button" data-i="${i}" aria-current="${i === state.sc}">${esc(s.tab)}${state.done[i] ? `<span class="score">${state.meters[i]}/5</span>` : ""}</button>`
+  ).join("");
+  tabs.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => openScenario(+b.dataset.i)));
+}
+
+/* ---------- Flow ---------- */
+function openScenario(i) {
+  state.sc = i; state.beat = 0; state.picked = null; state.revealed = new Set();
+  state.phase = state.done[i] ? "debrief" : "intro";
+  if (!state.done[i]) { state.meters[i] = 5; state.log[i] = []; }
+  buildPage(); render();
+}
+function choose(i) {
+  if (state.phase !== "beat") return;
+  const o = SCENARIOS[state.sc].beats[state.beat].options[i];
+  state.picked = i; state.phase = "result";
+  state.log[state.sc][state.beat] = i;
+  if (!o.ok) state.meters[state.sc] = Math.max(0, state.meters[state.sc] - 1);
+  render();
+}
+function advance() {
+  const sc = SCENARIOS[state.sc];
+  if (state.phase === "intro") { state.phase = "beat"; state.beat = 0; }
+  else if (state.phase === "result") {
+    if (state.beat < sc.beats.length - 1) { state.beat++; state.phase = "beat"; state.picked = null; }
+    else { state.phase = "post"; state.done[state.sc] = true; }
+  }
+  else if (state.phase === "post") { state.phase = "debrief"; state.revealed = new Set(); }
+  else if (state.phase === "debrief") {
+    if (state.sc < SCENARIOS.length - 1) { openScenario(state.sc + 1); return; }
+    state.phase = "final";
+  }
+  render();
+}
+function resetAll() {
+  state.meters = SCENARIOS.map(() => 5); state.done = SCENARIOS.map(() => false); state.log = SCENARIOS.map(() => []);
+  openScenario(0);
+}
+
+document.addEventListener("keydown", e => {
+  if ($("#pagesDialog").open) return;
+  if (state.phase === "beat" && ["1", "2", "3"].includes(e.key)) { choose(+e.key - 1); return; }
+  if ((e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") && $("#go") && document.activeElement?.tagName !== "BUTTON") {
+    e.preventDefault(); advance();
+  }
+});
+new ResizeObserver(layout).observe(stage);
+
+/* ---------- Comic page images (saved in this browser with IndexedDB) ---------- */
+const DB = "chad-tour", STORE = "pages";
+function idb() {
+  return new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    } catch (err) { rej(err); }
+  });
+}
+async function saveBlob(id, blob) {
+  try { const db = await idb(); db.transaction(STORE, "readwrite").objectStore(STORE).put(blob, id); } catch (e) {}
+}
+async function loadBlobs() {
+  try {
+    const db = await idb();
+    await Promise.all(SCENARIOS.map(s => new Promise(res => {
+      const q = db.transaction(STORE).objectStore(STORE).get(s.id);
+      q.onsuccess = async () => { if (q.result) await useBlob(s.id, q.result); res(); };
+      q.onerror = () => res();
+    })));
+  } catch (e) {}
+}
+function useBlob(id, blob) {
+  return new Promise(res => {
+    const url = URL.createObjectURL(blob);
+    const im = new Image();
+    im.onload = () => { state.images[id] = { url, ratio: im.naturalHeight / im.naturalWidth, rects: detectRects(im), custom: true }; res(); };
+    im.onerror = () => res();
+    im.src = url;
+  });
+}
+/* Find the 2 x 3 panel grid in an uploaded page by looking for white gutters. */
+function detectRects(im) {
+  try {
+    const W = 300, H = Math.round(300 * im.naturalHeight / im.naturalWidth);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d"); g.drawImage(im, 0, 0, W, H);
+    const d = g.getImageData(0, 0, W, H).data;
+    const white = (x, y) => { const i = (y * W + x) * 4; return d[i] > 230 && d[i + 1] > 230 && d[i + 2] > 230; };
+    const colW = Array.from({ length: W }, (_, x) => { let n = 0; for (let y = 0; y < H; y++) n += white(x, y); return n / H; });
+    const rowW = Array.from({ length: H }, (_, y) => { let n = 0; for (let x = 0; x < W; x++) n += white(x, y); return n / W; });
+    const bands = (v) => { const out = []; let st = -1; v.forEach((f, i) => { if (f < 0.93 && st < 0) st = i; if ((f >= 0.93 || i === v.length - 1) && st >= 0) { out.push([st, i]); st = -1; } }); return out.filter(([a, b]) => b - a > v.length * 0.12); };
+    const cols = bands(colW), rows = bands(rowW);
+    if (cols.length !== 2 || rows.length !== 3) return null;
+    return gridRects(W, H, cols, rows);
+  } catch (e) { return null; }
+}
+async function clearBlob(id) {
+  try { const db = await idb(); db.transaction(STORE, "readwrite").objectStore(STORE).delete(id); } catch (e) {}
+}
+function renderUploads() {
+  $("#uploads").innerHTML = SCENARIOS.map(s => `<div class="uprow">
+    <label for="up-${s.id}">${esc(s.tab)}: ${esc(s.place)}</label>
+    <input type="file" id="up-${s.id}" accept="image/*" data-id="${s.id}">
+    <div class="status">${state.images[s.id]?.custom ? (state.images[s.id].rects ? "Using your uploaded page." : "Using your uploaded page. Its panels did not form a clean 2 by 3 grid, so zooms use a standard layout.") : "Using the built-in page."}</div>
+    ${state.images[s.id]?.custom ? `<div class="row-actions"><button class="iconbtn" type="button" data-reset="${s.id}">Use the built-in page</button></div>` : ""}</div>`).join("");
+  $("#uploads").querySelectorAll("[data-reset]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.reset; await clearBlob(id); state.images[id] = { ...PAGES[id] };
+    renderUploads(); if (SCENARIOS[state.sc].id === id) buildPage();
+  }));
+  $("#uploads").querySelectorAll("input").forEach(inp => inp.addEventListener("change", async () => {
+    const f = inp.files[0]; if (!f) return;
+    await useBlob(inp.dataset.id, f); saveBlob(inp.dataset.id, f);
+    renderUploads(); if (SCENARIOS[state.sc].id === inp.dataset.id) buildPage();
+  }));
+}
+$("#openPages").addEventListener("click", () => { renderUploads(); $("#pagesDialog").showModal(); });
+$("#closePages").addEventListener("click", () => $("#pagesDialog").close());
+
+buildPage(); render();
+loadBlobs().then(() => buildPage());
+</script>
+
+</body>
+</html>
